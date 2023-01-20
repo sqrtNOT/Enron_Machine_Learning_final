@@ -1,0 +1,46 @@
+Enron Submission Free-Response Questions
+
+    Summarize for us the goal of this project and how machine learning is useful in trying to accomplish it. As part of your answer, give some background on the dataset and how it can be used to answer the project question. Were there any outliers in the data when you got it, and how did you handle those?  [relevant rubric items: “data exploration”, “outlier investigation”]
+
+	In the early 2000s the FERC ivestigated Enron for corporate fraud and in doing so seized over half a million e-mail records that were subsequently released to the public as the "Enron corpus". As of the time of writing the Enron corpus is the largest dataset of real e-mails available to the public. Given the history of these e-mails, a natural question might be to see if we can repurpose some of that fraud investigation for ourselves. Hiring paralegals to pore over every e-mail manually for every case is expensive and slow so if we can leverage this dataset to reduce their busy work we might be able to maintain the Sixth Amendment's promise to a speedy trial. 
+
+	When I received the data a number of e-mails had already been purged to protect the innocent and e-mails were organized by inbox. They were then processed using a hand-crafted list of Persons of Interest (POI) and various metadata was collected about these inboxes and combined with financial data. There were a number of outliers for many of these but the vast majority were what you might call "legitimate outliers" such as the CEO's salary being much higher than the average. There was one set of data that was merely the total of all the the others and that has been discarded.  
+
+
+
+    What features did you end up using in your POI identifier, and what selection process did you use to pick them? Did you have to do any scaling? Why or why not? As part of the assignment, you should attempt to engineer your own feature that does not come ready-made in the dataset -- explain what feature you tried to make, and the rationale behind it. (You do not necessarily have to use it in the final analysis, only engineer and test it.) In your feature selection step, if you used an algorithm like a decision tree, please also give the feature importances of the features that you use, and if you used an automated feature selection function like SelectKBest, please report the feature scores and reasons for your choice of parameter values.  [relevant rubric items: “create new features”, “intelligently select features”, “properly scale features”]
+
+	While tuning features for the classifier I originally just used every feature available so that I could test to see which models would perform reasonably well on this dataset and I ended up with multi-layer perceptrons, decision trees, and support vector machines. As support vector machines are generally considered sensitive to wildly different feature scales I normalized them pre-emptively to eschew any potential problems. From there I tuned each model individually. SVMs and MLPs had fairly disappointing results with very minor or ambiguous changes in the performance metrics despite major parameter changes. For example going from a single hidden layer of 10 perceptrons to 6 layers of 1000 perceptrons increased accuracy, decreased recall and left precision unchanged. Decision trees on the other hand performed very well. This is likely due to the great simplicity of decision trees: complex models don't generalize well with this little data.  
+
+	The process for choosing features was based initially on the human intuition of myself and a few discussions I had about corporate fraud with others. I ended up with deferred income, expenses, other, long term incentive, and restricted stock as well as 2 features that I engineered myself. These were the fraction of total e-mails sent to a POI (to_poi_fraction) and the fraction of total e-mails received from a POI (from_poi_fraction). The intution being that POIs tend to talk to other POIs often but so do generally prolific e-mailers; reworking the existing features into fractions of the total rather than simple counts could help more effectively differentiate these groups. After a few rounds of pruning based on feature importances (many features with 0 importance) and amount of data available (loan_advances has too many missing values to be useful) I ended up using just 2 features: expenses and to_poi_fraction with feature importances of 0.526 and 0.474 respectively. Interestingly, even if I try to add in more features it just sets the feature importance to 0 to ignore it.  
+
+
+
+    What algorithm did you end up using? What other one(s) did you try? How did model performance differ between algorithms?  [relevant rubric item: “pick an algorithm”]
+
+	I eventually settled on Decision Trees as the final model after trying Support Vector Machines and Multi Layer Perceptrons. SVMs with an RBF kernel initially seemed a good fit for a decision boundary with many high variance features but their performance was somewhat lacking even after much feature scaling, parameter tuning, and feature selection. MLPs were orders of magnitude slower to train than anything else I tried and neither deepening nor widening the network seemed to help at all. However, after just the first round of feature selection the default decision tree parameters outperformed the maximum individual values in every metric for both SVMs and MLPs. After tuning, the gap was even more stark as I managed to nearly double these initial values.
+
+
+
+    What does it mean to tune the parameters of an algorithm, and what can happen if you don’t do this well?  How did you tune the parameters of your particular algorithm? What parameters did you tune? (Some algorithms do not have parameters that you need to tune -- if this is the case for the one you picked, identify and briefly explain how you would have done it for the model that was not your final choice or a different model that does utilize parameter tuning, e.g. a decision tree classifier).  [relevant rubric items: “discuss parameter tuning”, “tune the algorithm”]
+
+	Parameter tuning is the art of hand-tailoring the internals of a general-purpose machine learning algorithm for the problem at hand in order to increase performance. Nowhere is this more apparent than in the hidden layer structure of a multi-layer perceptron. With different values for this you can go from an autoencoder to a deep neural network and training times from 6 seconds on a CPU to 8000 hours on a GPU. If you don't do it well then your model could reach a degenerate state such as guessing that everyone is a POI no matter what or overfitting to the point of memorizing the input data. 
+
+	For the most basic possible example: tuning the criterion parameter of my decision tree classifier. There were 2 possible values, gini and entropy, so I simply tried both and went with the better of the two. I performed a similar ad-hoc A/B tests to a number of other parameters and simply selected the best of the ones I tried. I didn't just guess and check of course; It also behooved me to do a second pass on all the parameters I had already tuned to make sure the decisions were actually the best and not just the best in the short term.
+ 
+
+
+    What is validation, and what’s a classic mistake you can make if you do it wrong? How did you validate your analysis?  [relevant rubric items: “discuss validation”, “validation strategy”]
+
+	Validation is essentially bringing data to bear on your data science. If you change something about your model, your representation, your features, your dataset, etc. how can you know if it actually made things better and not worse? That's where validation comes in. Generate metrics that matter for your problem with each change to see what exactly your changes are doing, if anything, and then react accordingly. However, blind faith in your validation metrics can also come with severe consequences. For example, consider a model that is tasked with finding a needle in a haystack: you show it either a needle or some straw and it tells you what it is. If you're relying only on your metrics then you might be overjoyed at your 99% accuracy without realizing that your model simply ignores all inputs and guesses straw 100% of the time. For that reason I tracked the Accuracy of my classifier in order to avoid the needle in a haystack problem. I also tracked precision because it means less time wasted by paralegals reading e-mails and recall because you don't want to overlook anyone important and have them go free.
+
+
+
+    Give at least 2 evaluation metrics and your average performance for each of them. Explain an interpretation of your metrics that says something human-understandable about your algorithm’s performance. [relevant rubric item: “usage of evaluation metrics”]
+	
+	Accuracy: 80% 
+		Assigns the wrong label to everyone 20% of the time
+	Precision: 47% 
+		When it outputs a POI label it's a coinflip whether the model was correct or not
+	Recall: 55%
+		A little more than half of the people who should be marked as POIs are marked as POIs
